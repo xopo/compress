@@ -1,10 +1,20 @@
 package main
 
-import "core:os"
-import "core:path/filepath"
+import "core:encoding/json"
+import "core:fmt"
 
-get_target_folder :: proc() -> string {
-	home := os.get_env("HOME")
-	return filepath.join([]string{home, default_capture_folder})
+Config :: struct {
+	captureStore: string `json:"store"`,
+	encoder:      string `json:"encoder"`,
+}
 
+// embed cofig file at build time
+data :: #load("../config.json")
+
+get_config :: proc() -> Config {
+	conf: Config
+	if json_err := json.unmarshal(data, &conf); json_err != nil {
+		fmt.eprintf("problem deconding, or missing config file: %q\n", json_err)
+	}
+	return conf
 }

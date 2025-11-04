@@ -19,15 +19,16 @@ ScreenCapture :: struct {
 
 main :: proc() {
 
-	record_folder := get_target_folder()
-	defer delete(record_folder)
+	config := get_config()
 
 	for {
 		time.sleep(pool_interval)
-		new_entries := get_movies_from_folder(record_folder)
+		new_entries := get_movies_from_folder(config.captureStore)
 
 		for mov in new_entries {
-			compress(mov, record_folder)
+			if ok := compress(mov, config); !ok {
+				fmt.eprint("error compressing: ", mov)
+			}
 			time.sleep(time.Millisecond * 100)
 		}
 		defer delete(new_entries)
@@ -48,53 +49,67 @@ printSeparator :: proc() {
 	fmt.printf("\n\n%s\n\n", strings.repeat("=", 50))
 }
 
-compress :: proc(mov: ScreenCapture, folder: string, allocator := context.allocator) {
-	input := filepath.join({folder, mov.name})
-	output := filepath.join({folder, mov.target})
+compress :: proc(mov: ScreenCapture, config: Config, allocator := context.allocator) -> bool {
+	input := filepath.join({config.captureStore, mov.name})
+	output := filepath.join({config.captureStore, mov.target})
 	defer delete(input, allocator)
 	defer delete(output, allocator)
 
 	// check input is viable
 	_, err := os.stat(input)
 	if err != nil {
-		return
+		fmt.eprintf("input file %s doesn't exist\n", input)
+		return false
 	}
 
-	cmd: []string = {"ffmpeg -i", input, "-vcodec libx264 -crf 23 -preset medium", output}
+	cmd: []string = {
+		config.encoder,
+		"-i",
+		input,
+		"-vcodec",
+		"libx264",
+		"-acodec",
+		"aac",
+		"-movflags",
+		"+faststart",
+		output,
+	}
 
-	fmt.println("1 - start compression")
-	process, proc_err := os2.process_start({command = cmd, working_dir = folder})
+	process, proc_err := os2.process_start({command = cmd, working_dir = config.captureStore})
 	if proc_err != nil {
-		fmt.eprintf("error executing cmd: %s\n, with err: %q", cmd, proc_err)
+		fmt.eprintf("error executing cmd: %s\n, with err: %q\n", cmd, proc_err)
+		return false
 	}
 
-	fmt.println("2 - wait to finish compression")
 	code, wait_err := os2.process_wait(process)
 	if wait_err != nil {
 		fmt.eprintf("FFmpeg failed for %s (exit code: %d)\n", input, code)
-		return
+		return false
 	}
-	fmt.println("3 - close process ")
+
+	fmt.println("3 - close process \n")
 	if err := os2.process_close(process); err != nil {
 		fmt.eprintf("error closing process %v\n", err)
-		return
+		return false
 	}
 
 
-	fmt.printf("4 - check file exists %s \n ", output)
+	fmt.printf("4 - check file exists %s \n\n ", output)
 	// check output is ok
 	info, stat_err := os.stat(output)
 	if stat_err != nil || info.size <= 0 {
-		return
+		fmt.eprintf("output file %s doesn't exist\n", output)
+		return false
 	}
 
 
-	fmt.printf("5 - delete input %s\n", input)
+	fmt.printf("5 - delete input %s\n\n", input)
 	if delete_err := os.remove(input); delete_err != nil {
 		fmt.eprintf("error deleting %s: %q\n", input, err)
-		return
+		return false
 	}
 	fmt.println("6 done")
+	return true
 }
 
 // Reads movies from folder path
@@ -106,7 +121,7 @@ get_movies_from_folder :: proc(from: string, allocator := context.allocator) -> 
 
 	file, err := os.open(from)
 	if err != nil {
-		fmt.eprintf("error opening folder %s: %q", from, err)
+		fmt.eprintf("error opening folder %s: %q\n", from, err)
 		return res[:]
 	}
 
@@ -123,9 +138,9 @@ get_movies_from_folder :: proc(from: string, allocator := context.allocator) -> 
 			ext := filepath.ext(fi.name)
 			if slice.contains(movie_types, ext) {
 				if err != nil {
-					fmt.eprintf("error creating target from file base: %q", err)
+					fmt.eprintf("error creating target from file base: %q\n", err)
 				}
-				target, _ := strings.replace(fi.name, ext, ".avi", -1)
+				target, _ := strings.replace(fi.name, ext, ".mp4", -1)
 				append(&res, ScreenCapture{name = strings.clone(fi.name), target = target})
 			}
 		}

@@ -16,5 +16,14 @@
 
     <key>KeepAlive</key>
     <true/>
+
+    <key>StandardOutputPath</key>
+    <string>/tmp/compress.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/compress.error.log</string>
+
+    <key>UserName</key>
+    <string>opo</string>
 </dict>
 </plist>
