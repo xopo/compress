@@ -11,6 +11,10 @@
     - [troubleshooting](#troubleshooting)
     <!--toc:end-->
 
+
+https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe
+
+
 - screen recording is great, sharing uncompressed video is not
 - this small utility will check ~/Desktop/screenshots folder for changes,
   compress any new file and delete the original
