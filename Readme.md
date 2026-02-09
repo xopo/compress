@@ -26,11 +26,17 @@ https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe
 
 ## How to use
 
-- build
+- build binary or use released one
+- by default it will monitor ~/Desktop/screenshots folder
+- it assumes ffmpeg is installed with homebrew in /opt/homebrew/bin/ffmpeg
+- default configuration can be changed by modifying sample_compress.bin, move it to ~/.compress.bin
+- move the compress.bin to /opt/homebrew/bin/compress.bin and make it executable
+- edit com.compress.odin.plist and move it to ~/Library/LaunchAgents
+- use launchctl to load the plist
 
 ### using Makefile
 
-- includes file optimisation
+- includes binary optimisation
 
 ```zsh
 make
@@ -39,7 +45,7 @@ make
 ### manual build
 
 ```zsh
-odin build -o compress.bin
+odin build compress -o compress.bin
 chmod +x compress.bin
 mv compress.bin /usr/local/bin # or in /opt/homebrew/bin
 ```

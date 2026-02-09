@@ -9,7 +9,6 @@ import "core:slice"
 import "core:strings"
 import "core:time"
 
-default_capture_folder: string = "Desktop/screenshots"
 movie_types: []string = []string{".mov"}
 pool_interval := time.Second * 5
 
@@ -19,7 +18,11 @@ ScreenCapture :: struct {
 
 main :: proc() {
 
-	config := get_config()
+	config, err := get_config()
+	if err {
+		fmt.eprintln("config problem, exiting")
+		os2.exit(1)
+	}
 
 	for {
 		time.sleep(pool_interval)
@@ -75,12 +78,14 @@ compress :: proc(mov: ScreenCapture, config: Config, allocator := context.alloca
 		output,
 	}
 
+	fmt.println("1 start compression\n")
 	process, proc_err := os2.process_start({command = cmd, working_dir = config.captureStore})
 	if proc_err != nil {
 		fmt.eprintf("error executing cmd: %s\n, with err: %q\n", cmd, proc_err)
 		return false
 	}
 
+	fmt.println("2 wait for compression to end\n")
 	code, wait_err := os2.process_wait(process)
 	if wait_err != nil {
 		fmt.eprintf("FFmpeg failed for %s (exit code: %d)\n", input, code)
@@ -94,7 +99,7 @@ compress :: proc(mov: ScreenCapture, config: Config, allocator := context.alloca
 	}
 
 
-	fmt.printf("4 - check file exists %s \n\n ", output)
+	fmt.printf("4 - check file exists %s \n\n", output)
 	// check output is ok
 	info, stat_err := os.stat(output)
 	if stat_err != nil || info.size <= 0 {
