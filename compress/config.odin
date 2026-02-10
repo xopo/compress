@@ -44,6 +44,9 @@ get_config :: proc() -> (Config, bool) {
 }
 
 get_home_folder :: proc() -> string {
+	if ODIN_OS == .Windows {
+		return os.get_env("USERPROFILE")
+	}
 	return os.get_env("HOME")
 }
 

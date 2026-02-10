@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe
 
 ## Why Odin ?
 
-- because why not, it is small and fast.
+- because why not, it is small and fast. 
 - learn to use and familiarize with it
 
 ## How to use
@@ -63,9 +63,13 @@ launchctl load ~/pathtoprogram/com.compress.odin.plist
 ### Want to keep it ?
 
 - move the plist file to user launch agents and run the commands
+- register
 
 ```zsh
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.compress.odin.plist
+```
+- load if it was unloaded
+```zsh
 launchctl enable gui/$(id -u)/com.compress.odin.plist
 ```
 
