@@ -21,7 +21,7 @@ Default:
 
 Configuration:
   To override default config, create a config json file at: 
-    ~/.config/comress/compress.json
+    ~/.config/compress/compress.json
 
 Example config:
   {
@@ -36,5 +36,5 @@ Example config:
 }
 
 printVersion :: proc() {
-	fmt.println("compress v0.2")
+	fmt.println("compress v0.2.beta")
 }

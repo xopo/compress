@@ -5,8 +5,9 @@ import "core:fmt"
 import "core:os"
 import "core:os/os2"
 import "core:path/filepath"
+import "core:strings"
 
-default_capture_folder: string = "Desktop/screenshots"
+default_capture_folder: string = "Desktop/Screenshots"
 default_encoder: string = "/opt/homebrew/bin/ffmpeg"
 
 Config :: struct {
@@ -15,18 +16,18 @@ Config :: struct {
 }
 
 // check for ~/.compress.json  or use default config
-get_config :: proc() -> (Config, bool) {
-	conf: Config
-	conf_file := filepath.join({get_home_folder(), ".compress.json"})
+get_config :: proc(dir: string) -> (conf: Config, valid: bool) {
+	conf_file := filepath.join({get_home_folder(), ".config/compress/compress.json"})
+
+	// set default config
 	if !is_valid_file(conf_file) {
-		fmt.eprintf(
-			"no config found in ~/ continue with default\n\nstore:\t%s\nffmpeg:\t%s\n",
-			default_capture_folder,
-			default_encoder,
-		)
-		valid := verify_config(&conf)
+		conf.captureStore = dir
+		conf.encoder = default_encoder
+
+		valid = verify_config(&conf)
 		return conf, !valid
 	}
+
 	data, err := os2.read_entire_file_from_path(conf_file, context.temp_allocator)
 	if err != nil {
 		fmt.eprintf("error read config from build folder, %w\n", err)
@@ -34,7 +35,7 @@ get_config :: proc() -> (Config, bool) {
 	}
 	json.unmarshal(data, &conf)
 	fmt.eprintf(
-		"found config file\n\nstore:\t%s\nffmpeg:\t%s\n\n",
+		"found config file:\n\tstore:\t%s\n\tffmpeg:\t%s\n\n",
 		conf.captureStore,
 		conf.encoder,
 	)
@@ -55,14 +56,14 @@ verify_config :: proc(cfg: ^Config) -> bool {
 	if len(movie_store) == 0 {
 		movie_store = default_capture_folder
 	}
-	if !is_valid_folder(movie_store) && movie_store[0] != '/' {
-		home_movie_store := filepath.join({get_home_folder(), movie_store})
-		if (!is_valid_folder(home_movie_store)) {
-			fmt.eprintf("invalid folder %s\n", movie_store)
-			return false
-		}
-		movie_store = home_movie_store
+
+	dir, is_valid := check_is_valid_folder(movie_store)
+	if (!is_valid) {
+		fmt.eprintf("invalid folder %s\n", movie_store)
+		return false
 	}
+	movie_store = dir
+
 	cfg.captureStore = movie_store
 
 	encoder := cfg.encoder
@@ -76,12 +77,34 @@ verify_config :: proc(cfg: ^Config) -> bool {
 		return true
 	}
 
+	fmt.eprintf("encoder missing or wrong path %q\n\n", encoder)
+
 	return false
+}
+
+// try as absolute or relative to home directory
+check_is_valid_folder :: proc(dir: string) -> (string, bool) {
+	loc_dir := strings.trim_space(dir)
+
+	if loc_dir[0] == '~' {
+		loc_dir = loc_dir[1:]
+	}
+	if is_valid_folder(loc_dir) {
+		return dir, true
+	}
+
+	checkDir, err := filepath.join({get_home_folder(), loc_dir})
+	if is_valid_folder(checkDir) || err != nil {
+		return checkDir, true
+	}
+	fmt.eprintf("folder %q not found\n", checkDir)
+	return "", false
 }
 
 is_valid_folder :: proc(dir: string) -> bool {
 	return is_valid(dir, .Directory)
 }
+
 
 is_valid_file :: proc(bin: string) -> bool {
 	return is_valid(bin, .Regular)

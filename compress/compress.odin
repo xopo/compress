@@ -17,22 +17,41 @@ ScreenCapture :: struct {
 }
 
 main :: proc() {
+
 	args := os.args
 
-	if len(args) < 2 {
+	if len(args) < 2 || len(args) > 3 {
 		info()
 		return
 	}
 
-  if args[1] == "-v" || args[1] == "--version" {
-    printVersion()
-    return
-  }
+	if args[1] == "-v" || args[1] == "--version" {
+		printVersion()
+		return
+	}
 
+	if args[1] == "-w" || args[1] == "--watch" {
+		store_folder := default_capture_folder
+		if len(args) == 3 {
+			store, is_valid := check_is_valid_folder(args[2])
+			if !is_valid {
+				fmt.eprintf("[Error] - invalid path %q to watch\n", args[2])
+				return
+			}
+			store_folder = store
+		}
+		watch(store_folder)
+	}
 
-	config, err := get_config()
+	fmt.eprintln("[Error] - missing or wrong flags\n\n")
+
+	info()
+}
+
+watch :: proc(dest: string) {
+	config, err := get_config(dest)
 	if err {
-		fmt.eprintln("config problem, exiting")
+		fmt.eprintln("config problem, exiting\n")
 		os2.exit(1)
 	}
 
@@ -41,7 +60,7 @@ main :: proc() {
 		new_entries := get_movies_from_folder(config.captureStore)
 
 		for mov in new_entries {
-			if ok := compress(mov, config); !ok {
+			if ok := convert(mov, config); !ok {
 				fmt.eprint("error compressing: ", mov)
 			}
 			time.sleep(time.Millisecond * 100)
@@ -50,25 +69,14 @@ main :: proc() {
 	}
 }
 
-@(init)
-startup :: proc() {
-	printSeparator()
-}
-
-@(fini)
-shutdown :: proc() {
-	printSeparator()
-}
 
 printSeparator :: proc() {
 	fmt.printf("\n\n%s\n\n", strings.repeat("=", 50))
 }
 
-compress :: proc(mov: ScreenCapture, config: Config, allocator := context.allocator) -> bool {
-	input := filepath.join({config.captureStore, mov.name})
-	output := filepath.join({config.captureStore, mov.target})
-	defer delete(input, allocator)
-	defer delete(output, allocator)
+convert :: proc(mov: ScreenCapture, config: Config) -> bool {
+	input := filepath.join({config.captureStore, mov.name}, context.temp_allocator)
+	output := filepath.join({config.captureStore, mov.target}, context.temp_allocator)
 
 	// check input is viable
 	_, err := os.stat(input)
@@ -90,28 +98,27 @@ compress :: proc(mov: ScreenCapture, config: Config, allocator := context.alloca
 		output,
 	}
 
-	fmt.println("1 start compression\n")
+	fmt.println("\n1 found new file")
 	process, proc_err := os2.process_start({command = cmd, working_dir = config.captureStore})
 	if proc_err != nil {
 		fmt.eprintf("error executing cmd: %s\n, with err: %q\n", cmd, proc_err)
 		return false
 	}
 
-	fmt.println("2 wait for compression to end\n")
+	fmt.println("2 wait for ffmpeg to complete")
 	code, wait_err := os2.process_wait(process)
 	if wait_err != nil {
 		fmt.eprintf("FFmpeg failed for %s (exit code: %d)\n", input, code)
 		return false
 	}
 
-	fmt.println("3 - close process \n")
+	fmt.println("3 conversion completed")
 	if err := os2.process_close(process); err != nil {
 		fmt.eprintf("error closing process %v\n", err)
 		return false
 	}
 
-
-	fmt.printf("4 - check file exists %s \n\n", output)
+	fmt.printf("4 check new file exists %s\n", output)
 	// check output is ok
 	info, stat_err := os.stat(output)
 	if stat_err != nil || info.size <= 0 {
@@ -119,22 +126,19 @@ compress :: proc(mov: ScreenCapture, config: Config, allocator := context.alloca
 		return false
 	}
 
-
-	fmt.printf("5 - delete input %s\n\n", input)
+	fmt.printf("5 delete input file %s\n", input)
 	if delete_err := os.remove(input); delete_err != nil {
 		fmt.eprintf("error deleting %s: %q\n", input, err)
 		return false
 	}
-	fmt.println("6 done")
+	fmt.println("6 done\n")
 	return true
 }
 
 // Reads movies from folder path
-get_movies_from_folder :: proc(from: string, allocator := context.allocator) -> []ScreenCapture {
+get_movies_from_folder :: proc(from: string) -> []ScreenCapture {
 	res: [dynamic]ScreenCapture
 	fis: []os.File_Info
-	// delete all the info when done
-	defer os.file_info_slice_delete(fis)
 
 	file, err := os.open(from)
 	if err != nil {
@@ -144,7 +148,7 @@ get_movies_from_folder :: proc(from: string, allocator := context.allocator) -> 
 
 	// free meme on exit
 	defer os.close(file)
-	fis, err = os.read_dir(file, 0, allocator)
+	fis, err = os.read_dir(file, 0, context.temp_allocator)
 	if err != os.ERROR_NONE {
 		fmt.eprintf("Error reading directory %s: %q\n", from, err)
 		os.exit(2)
