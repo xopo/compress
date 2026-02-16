@@ -17,6 +17,18 @@ ScreenCapture :: struct {
 }
 
 main :: proc() {
+	args := os.args
+
+	if len(args) < 2 {
+		info()
+		return
+	}
+
+  if args[1] == "-v" || args[1] == "--version" {
+    printVersion()
+    return
+  }
+
 
 	config, err := get_config()
 	if err {
