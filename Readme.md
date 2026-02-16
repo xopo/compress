@@ -11,9 +11,7 @@
     - [troubleshooting](#troubleshooting)
     <!--toc:end-->
 
-
-https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe
-
+<https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe>
 
 - screen recording is great, sharing uncompressed video is not
 - this small utility will check ~/Desktop/screenshots folder for changes,
@@ -21,7 +19,7 @@ https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe
 
 ## Why Odin ?
 
-- because why not, it is small and fast. 
+- because why not, it is small and fast.
 - learn to use and familiarize with it
 
 ## How to use
@@ -29,7 +27,6 @@ https://github.com/user-attachments/assets/bc1c2a5b-b38b-49c2-b03c-c947c72336fe
 - build binary or use released one
 - by default it will monitor ~/Desktop/screenshots folder
 - it assumes ffmpeg is installed with homebrew in /opt/homebrew/bin/ffmpeg
-- default configuration can be changed by modifying sample_compress.bin, move it to ~/.compress.bin
 - move the compress.bin to /opt/homebrew/bin/compress.bin and make it executable
 - edit com.compress.odin.plist and move it to ~/Library/LaunchAgents
 - use launchctl to load the plist
@@ -68,7 +65,9 @@ launchctl load ~/pathtoprogram/com.compress.odin.plist
 ```zsh
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.compress.odin.plist
 ```
+
 - load if it was unloaded
+
 ```zsh
 launchctl enable gui/$(id -u)/com.compress.odin.plist
 ```
