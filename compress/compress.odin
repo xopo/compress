@@ -12,8 +12,8 @@ import "core:time"
 movie_types: []string = []string{".mov"}
 pool_interval := time.Second * 5
 
-ScreenCapture :: struct {
-	name, target: string,
+ScreenRecording :: struct {
+	input, output: string,
 }
 
 main :: proc() {
@@ -48,6 +48,7 @@ main :: proc() {
 	info()
 }
 
+
 watch :: proc(dest: string) {
 	config, err := get_config(dest)
 	if err {
@@ -57,7 +58,7 @@ watch :: proc(dest: string) {
 
 	for {
 		time.sleep(pool_interval)
-		new_entries := get_movies_from_folder(config.captureStore)
+		new_entries := get_movies_from_folder(&config)
 
 		for mov in new_entries {
 			if ok := convert(mov, config); !ok {
@@ -74,9 +75,9 @@ printSeparator :: proc() {
 	fmt.printf("\n\n%s\n\n", strings.repeat("=", 50))
 }
 
-convert :: proc(mov: ScreenCapture, config: Config) -> bool {
-	input := filepath.join({config.captureStore, mov.name}, context.temp_allocator)
-	output := filepath.join({config.captureStore, mov.target}, context.temp_allocator)
+convert :: proc(mov: ScreenRecording, config: Config) -> bool {
+	input := filepath.join({config.captureStore, mov.input}, context.temp_allocator)
+	output := filepath.join({config.captureStore, mov.output}, context.temp_allocator)
 
 	// check input is viable
 	_, err := os.stat(input)
@@ -136,21 +137,31 @@ convert :: proc(mov: ScreenCapture, config: Config) -> bool {
 }
 
 // Reads movies from folder path
-get_movies_from_folder :: proc(from: string) -> []ScreenCapture {
-	res: [dynamic]ScreenCapture
+get_movies_from_folder :: proc(conf: ^Config) -> []ScreenRecording {
+	res: [dynamic]ScreenRecording
 	fis: []os.File_Info
 
-	file, err := os.open(from)
+	stat, acces_err := os.stat(conf.captureStore)
+	if acces_err != nil {
+		fmt.eprintf("error accessing folder %q, with error %q\n", conf.captureStore, acces_err)
+	}
+
+	last_access, exists := access_exist(conf)
+	if exists && last_access == stat.modification_time {
+		return res[:]
+	}
+
+	target_dir, err := os.open(conf.captureStore)
 	if err != nil {
-		fmt.eprintf("error opening folder %s: %q\n", from, err)
+		fmt.eprintf("error opening folder %s: %q\n", conf.captureStore, err)
 		return res[:]
 	}
 
 	// free meme on exit
-	defer os.close(file)
-	fis, err = os.read_dir(file, 0, context.temp_allocator)
+	defer os.close(target_dir)
+	fis, err = os.read_dir(target_dir, 0, context.temp_allocator)
 	if err != os.ERROR_NONE {
-		fmt.eprintf("Error reading directory %s: %q\n", from, err)
+		fmt.eprintf("Error reading directory %s: %q\n", conf.captureStore, err)
 		os.exit(2)
 	}
 
@@ -162,9 +173,14 @@ get_movies_from_folder :: proc(from: string) -> []ScreenCapture {
 					fmt.eprintf("error creating target from file base: %q\n", err)
 				}
 				target, _ := strings.replace(fi.name, ext, ".mp4", -1)
-				append(&res, ScreenCapture{name = strings.clone(fi.name), target = target})
+				append(&res, ScreenRecording{input = strings.clone(fi.name), output = target})
 			}
 		}
+	}
+
+	if len(res) == 0 {
+		// no file to process? keep the modification_time
+		add_access(conf, stat.modification_time)
 	}
 	return res[:]
 }

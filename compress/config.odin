@@ -6,13 +6,27 @@ import "core:os"
 import "core:os/os2"
 import "core:path/filepath"
 import "core:strings"
+import "core:time"
 
 default_capture_folder: string = "Desktop/Screenshots"
 default_encoder: string = "/opt/homebrew/bin/ffmpeg"
 
+
 Config :: struct {
 	captureStore: string `json:"store"`,
 	encoder:      string `json:"encoder"`,
+	access:       map[string]time.Time,
+}
+
+access_exist :: proc(conf: ^Config) -> (access_time: time.Time, exists: bool) {
+	access_time, exists = conf.access[conf.captureStore]
+	return access_time, exists
+}
+
+add_access :: proc(conf: ^Config, access_time: time.Time) {
+	clear(&conf.access) // remove old location access
+
+	conf.access[conf.captureStore] = access_time
 }
 
 // check for ~/.compress.json  or use default config
