@@ -36,5 +36,5 @@ Example config:
 }
 
 printVersion :: proc() {
-	fmt.println("compress v0.2.beta")
+	fmt.println("compress v0.5.beta")
 }
