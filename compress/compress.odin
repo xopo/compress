@@ -16,6 +16,10 @@ ScreenRecording :: struct {
 	input, output: string,
 }
 
+on_folder_change :: proc(folder: string) {
+	fmt.println("*** folder change %q", folder)
+}
+
 main :: proc() {
 
 	args := os.args
@@ -56,17 +60,28 @@ watch :: proc(dest: string) {
 		os2.exit(1)
 	}
 
-	for {
-		time.sleep(pool_interval)
-		new_entries := get_movies_from_folder(&config)
+	when ODIN_OS == .Darwin {
+		fmt.printf("darwin detected, start watching %q\n", dest)
+		stream := start_watching(dest, on_folder_change)
+		defer stop_watching(stream)
+		fmt.println("config", config)
 
-		for mov in new_entries {
-			if ok := convert(mov, config); !ok {
-				fmt.eprint("error compressing: ", mov)
+		// Run the event loop (bloks until intrerrupted)
+		CFRunLoopRun()
+	} else {
+
+		for {
+			time.sleep(pool_interval)
+			new_entries := get_movies_from_folder(&config)
+
+			for mov in new_entries {
+				if ok := convert(mov, config); !ok {
+					fmt.eprint("error compressing: ", mov)
+				}
+				time.sleep(time.Millisecond * 100)
 			}
-			time.sleep(time.Millisecond * 100)
+			defer delete(new_entries)
 		}
-		defer delete(new_entries)
 	}
 }
 
